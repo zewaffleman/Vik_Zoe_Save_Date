@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.DS_Store
+
+# Private reference material (keep out of the public repo)
+*.pdf
+Screenshot*.png

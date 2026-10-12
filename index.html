@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en-AU">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Vik & Zoe · Save the Date</title>
+    <meta name="description" content="Vik & Zoe are getting married. Save the date: 22 August 2027, Brisbane." />
+    <meta name="theme-color" content="#140C26" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <!-- Sky + stars fill the whole screen, behind the stage -->
+    <div id="sky" aria-hidden="true"></div>
+    <div id="stars" aria-hidden="true"></div>
+
+    <!-- The stage: a 400×800 design box scaled to fit (CONFIG.stage).
+         DOM order = paint order: planets, couple, rocket in front. -->
+    <main id="stage">
+      <div id="earth" class="sprite globe" role="img" aria-label="Earth"></div>
+
+      <!-- Real <button> so the moon is keyboard-focusable. Disabled until the couple sit down. -->
+      <button id="planet" class="sprite globe" type="button" aria-label="Open wedding details" disabled>
+        <span id="planet-shake" class="sprite-fill"></span>
+      </button>
+
+      <div id="mii-a" class="sprite mii" data-pose="idle" data-flip="0" aria-hidden="true">
+        <div class="mii-inner sprite-fill"></div>
+        <span class="exclaim">!</span>
+      </div>
+      <div id="mii-b" class="sprite mii" data-pose="idle" data-flip="0" aria-hidden="true">
+        <div class="mii-inner sprite-fill"></div>
+        <span class="exclaim">!</span>
+      </div>
+
+      <div id="rocket" class="sprite" role="img" aria-label="A little rocket carrying Vik and Zoe">
+        <div id="flame" class="sprite" aria-hidden="true"></div>
+        <div id="rocket-body" class="sprite-fill" aria-hidden="true"></div>
+        <div class="cabin" aria-hidden="true"></div>
+        <div id="passengers" aria-hidden="true">
+          <div class="head head-b"></div>
+          <div class="head head-a"></div>
+        </div>
+      </div>
+
+      <div id="hint" aria-live="polite">
+        <span class="hint__text"></span>
+        <!-- little hand-drawn arrow pointing down at the moon -->
+        <svg class="hint__arrow" viewBox="0 0 40 44" aria-hidden="true">
+          <path d="M20 2 C 12 12, 28 20, 19 38" />
+          <path d="M12 31 L 19 39 L 26 32" />
+        </svg>
+      </div>
+    </main>
+
+    <!-- Title screen: tap anywhere (the button is there for keyboard users) -->
+    <div id="title">
+      <div id="title-inner">
+        <!-- whimsical doodles (drawn by src/fx/doodles.js) -->
+        <svg class="doodle t-planet" data-doodle="planet"></svg>
+        <svg class="doodle t-thistle" data-doodle="thistle"></svg>
+        <svg class="doodle t-swirl" data-doodle="swirl"></svg>
+        <svg class="doodle t-marigold" data-doodle="marigold"></svg>
+        <svg class="doodle t-spark1" data-doodle="sparkle-light"></svg>
+        <svg class="doodle t-spark2" data-doodle="sparkle"></svg>
+        <svg class="doodle t-spark3" data-doodle="sparkle-light"></svg>
+
+        <p class="kicker" data-text="title.kicker"></p>
+        <h1 class="names" data-text="title.names"></h1>
+        <svg class="underline" data-doodle="squiggle"></svg>
+        <p class="tagline" data-text="title.tagline"></p>
+        <p class="dateline">
+          <svg class="frame" data-frame="oval"></svg>
+          <span data-text="title.dateLine"></span>
+        </p>
+        <p class="place" data-text="event.city"></p>
+        <button id="start" class="begin" type="button">
+          <svg class="frame" data-frame="box"></svg>
+          <span data-text="title.button"></span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Info card -->
+    <div id="panel" role="dialog" aria-modal="true" aria-labelledby="card-names" hidden>
+      <div class="panel__backdrop" data-close></div>
+      <button class="card__close" type="button" aria-label="Close" data-close>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+      </button>
+      <div class="card-wrap">
+        <!-- doodles tucked around the card's edges -->
+        <svg class="doodle c-blob" data-doodle="blob"></svg>
+        <svg class="doodle c-thistle" data-doodle="thistle"></svg>
+        <svg class="doodle c-marigold" data-doodle="marigold"></svg>
+        <svg class="doodle c-swirl" data-doodle="swirl"></svg>
+        <svg class="doodle c-planet" data-doodle="planet"></svg>
+        <svg class="doodle c-spark" data-doodle="sparkle"></svg>
+
+      <article class="card" tabindex="-1">
+        <header class="card__head">
+          <svg class="card__orbit" data-doodle="orbit"></svg>
+          <p class="kicker">Save the date</p>
+          <h2 id="card-names" class="names" data-slot="names"></h2>
+          <svg class="underline" data-doodle="squiggle"></svg>
+          <p class="tagline">are getting married</p>
+        </header>
+
+        <div class="rule" aria-hidden="true">
+          <svg data-doodle="squiggle"></svg><svg class="rule__star" data-doodle="sparkle"></svg><svg data-doodle="squiggle"></svg>
+        </div>
+
+        <section class="card__section">
+          <h3 class="label">When</h3>
+          <p class="card__big"><span data-slot="day"></span>, <span data-slot="date"></span></p>
+          <p data-slot="time"></p>
+        </section>
+
+        <section class="card__section">
+          <h3 class="label">Where</h3>
+          <p class="card__big" data-slot="venue"></p>
+          <p class="card__sub" data-slot="area"></p>
+          <p class="card__small" data-slot="address"></p>
+        </section>
+
+        <div class="rule" aria-hidden="true">
+          <svg data-doodle="squiggle"></svg><svg class="rule__star" data-doodle="sparkle"></svg><svg data-doodle="squiggle"></svg>
+        </div>
+
+        <p class="card__note" data-slot="note"></p>
+        <p class="card__todo">Maps, calendar &amp; RSVP arrive in step 6.</p>
+
+        <footer class="card__foot">
+          <button class="text-button" type="button" data-replay>Watch again</button>
+        </footer>
+      </article>
+      </div>
+    </div>
+
+    <button id="mute" type="button" aria-pressed="false" aria-label="Mute sound">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path class="mute__speaker" d="M4 9.5v5h3.5L12 18V6L7.5 9.5H4z" />
+        <path class="mute__waves" d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" />
+        <path class="mute__cross" d="M16 9.5l5 5M21 9.5l-5 5" />
+      </svg>
+    </button>
+
+    <!-- Lightweight loading state; removed once images are ready -->
+    <div id="loader" aria-live="polite">
+      <p>Preparing for launch…</p>
+      <div class="loader__bar"><span></span></div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

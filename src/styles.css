@@ -1,0 +1,801 @@
+/*
+ * Colours come from CONFIG.colors (set as CSS variables in main.js).
+ * The fallbacks here are only for the split second before JS runs.
+ *
+ * Type: Bagel Fat One for the couple's names (the fun bit), Cormorant
+ * Garamond for everything else (the "proper stationery" bit).
+ */
+:root {
+  --blush: #f6cfc4;
+  --lilac: #c7b0da;
+  --rust: #c24a33;
+  --berry: #ec9aa3;
+  --peach: #f2825e;
+  --matcha: #a3b437;
+  --brass: #c39b55;
+  --wordmark: #8a4fc4;
+  --ink: #2e1a3a;
+  --cream: #fbf4e8;
+  --paper: #fbf7f0;
+  --sky-top: #140c26;
+  --sky-mid: #342152;
+  --sky-bottom: #7a4470;
+  --stage-scale: 1;
+
+  --font-display: 'Bagel Fat One', Georgia, serif;
+  --font-serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: var(--sky-top);
+  color: var(--cream);
+  font-family: var(--font-serif);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+/* Paper grain over everything: makes the whole page feel printed rather than
+   glossy-digital. Pure SVG noise, no image file. */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  opacity: 0.09;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ------------------------------------------------------------------ */
+/* Sky + stars                                                         */
+/* ------------------------------------------------------------------ */
+#sky {
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(120% 60% at 50% 110%, color-mix(in srgb, var(--sky-bottom) 70%, transparent), transparent 70%),
+    linear-gradient(to bottom, var(--sky-top) 0%, var(--sky-mid) 60%, var(--sky-bottom) 100%);
+  background-size: cover;
+  background-position: center;
+}
+
+#stars {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.star-layer {
+  position: absolute;
+  background-repeat: repeat;
+  will-change: transform;
+}
+
+.twinkle {
+  position: absolute;
+  pointer-events: none;
+}
+
+/* ------------------------------------------------------------------ */
+/* Stage                                                               */
+/* ------------------------------------------------------------------ */
+#stage {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  width: 400px;
+  height: 800px;
+  transform: translate(-50%, -50%) scale(var(--stage-scale));
+}
+
+.sprite {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.sprite-fill {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+.frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+/* 3D globes: canvas is larger than the sprite so the atmosphere can glow */
+.globe {
+  overflow: visible;
+}
+
+.globe-canvas {
+  position: absolute;
+  pointer-events: none;
+}
+
+.globe-fallback,
+.globe-fallback #planet-shake {
+  border-radius: 50%;
+  background-size: 200% 100%;
+  background-position: center;
+}
+
+#flame {
+  left: 50%;
+  z-index: 0;
+}
+
+/* Layers inside the rocket, back to front: flame, cabin (dark window
+   glass), passenger heads, then the drawing on top. The drawing's window is
+   see-through, so the heads only show inside it. */
+.cabin {
+  position: absolute;
+  z-index: 1;
+  border-radius: 50%;
+}
+
+#passengers {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+
+#passengers .head {
+  position: absolute;
+}
+
+#rocket-body {
+  z-index: 3;
+}
+
+#rocket,
+.mii {
+  pointer-events: none;
+}
+
+/* Mii renders (src/fx/miiClips.js): keyed video draws into the canvas;
+   transparent GIF/WebP clips show as images. data-flip mirrors the walk. */
+.mii-canvas,
+.mii-clip {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* source videos must stay "rendered" for iOS to decode them, so they're
+   shrunk to a pixel rather than display:none */
+.mii-src {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.mii[data-flip='1'] .mii-inner {
+  transform: scaleX(-1);
+}
+
+/* Impatient "!" (outside .mii-inner so it never mirrors) */
+.exclaim {
+  position: absolute;
+  font-family: var(--font-display);
+  line-height: 1;
+  -webkit-text-stroke: 1.5px #fff;
+  paint-order: stroke fill;
+  text-shadow: 0 2px 0 rgba(46, 26, 58, 0.35);
+  visibility: hidden;
+}
+
+#planet {
+  padding: 0;
+  border: 0;
+  background: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+#planet:disabled {
+  cursor: default;
+}
+
+#planet:focus-visible {
+  outline: 2px solid var(--cream);
+  outline-offset: 10px;
+}
+
+/* "Tap the moon" hint: italic serif + hand-drawn arrow */
+#hint {
+  position: absolute;
+  left: 50%;
+  top: 262px;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  color: var(--cream);
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.hint__text {
+  font-style: italic;
+  font-size: 22px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.hint__arrow {
+  width: 26px;
+  height: 30px;
+  fill: none;
+  stroke: var(--brass);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ------------------------------------------------------------------ */
+/* Shared type                                                         */
+/* ------------------------------------------------------------------ */
+.kicker,
+.label {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+}
+
+.names {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  line-height: 0.95;
+  letter-spacing: 0.005em;
+}
+
+.tagline {
+  margin: 0;
+  font-style: italic;
+  font-size: 20px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Title screen (text straight on the night sky)                       */
+/* ------------------------------------------------------------------ */
+#title {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  justify-content: center;
+  padding: max(9vh, env(safe-area-inset-top)) 16px 0;
+  cursor: pointer;
+}
+
+#title-inner {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  max-width: 420px;
+}
+
+#title .kicker {
+  color: var(--blush);
+}
+
+#title .names {
+  margin: 10px 0 4px;
+  font-size: clamp(52px, 17vw, 84px);
+  color: var(--blush);
+  text-shadow: 0 2px 24px rgba(236, 154, 163, 0.25);
+}
+
+#title .tagline {
+  color: var(--cream);
+  opacity: 0.9;
+}
+
+.dateline {
+  position: relative;
+  margin: 14px 0 0;
+  padding: 10px 28px 9px;
+  font-weight: 500;
+  font-size: 24px;
+  letter-spacing: 0.18em;
+  color: var(--cream);
+}
+
+.place {
+  margin: 0;
+  font-size: 15px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--brass);
+}
+
+/* Understated "tap to begin": hand-drawn frame, slow breathing opacity */
+.begin {
+  position: relative;
+  margin-top: 26px;
+  min-height: 50px;
+  padding: 0 28px;
+  border: 0;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--cream);
+  cursor: pointer;
+  animation: breathe 2.6s ease-in-out infinite;
+  transition: background 0.3s, border-color 0.3s;
+}
+
+.begin:hover {
+  background: rgba(251, 244, 232, 0.06);
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.begin:focus-visible,
+.card__close:focus-visible,
+.text-button:focus-visible,
+#mute:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 3px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Doodles + hand-drawn frames (src/fx/doodles.js)                      */
+/* ------------------------------------------------------------------ */
+.doodle {
+  position: absolute;
+  height: auto;
+  aspect-ratio: 1;
+  overflow: visible;
+  pointer-events: none;
+  /* a slow, stepped bob: like the drawings, it moves in held poses */
+  animation: doodle-float var(--dur, 6s) steps(22) infinite alternate;
+}
+
+@keyframes doodle-float {
+  from {
+    transform: translateY(0) rotate(var(--r0, -5deg));
+  }
+  to {
+    transform: translateY(var(--dy, -7px)) rotate(var(--r1, 5deg));
+  }
+}
+
+.frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.dateline .frame {
+  color: var(--brass);
+}
+
+.begin .frame {
+  color: color-mix(in srgb, var(--cream) 80%, transparent);
+}
+
+.underline {
+  width: 150px;
+  height: 14px;
+  overflow: visible;
+  color: var(--peach);
+}
+
+/* Title doodles (positions relative to the title text block) */
+.t-planet { width: 66px; top: -6px; left: -12px; --r0: -12deg; --r1: 2deg; --dur: 7s; }
+.t-thistle { width: 46px; top: 118px; right: -20px; --dur: 5.5s; --dy: -9px; }
+.t-swirl { width: 34px; top: 188px; left: -16px; --r0: 0deg; --r1: 40deg; --dur: 8s; }
+.t-marigold { width: 40px; top: 262px; right: 8px; --r0: -20deg; --r1: 20deg; --dur: 6.5s; }
+.t-spark1 { width: 14px; top: 34px; right: 46px; --dur: 3s; }
+.t-spark2 { width: 18px; top: 150px; left: 14px; --dur: 4s; }
+.t-spark3 { width: 12px; top: 340px; left: 56px; --dur: 3.5s; }
+
+#title .names {
+  margin-bottom: -2px;
+}
+
+.reduced .doodle {
+  animation: none;
+}
+
+/* ------------------------------------------------------------------ */
+/* Info card: arched stationery                                        */
+/* ------------------------------------------------------------------ */
+#panel {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+
+#panel[hidden] {
+  display: none;
+}
+
+.panel__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(14, 8, 28, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.card-wrap {
+  position: relative;
+  width: min(420px, calc(100% - 20px));
+  --arch: 50% 50% 16px 16px / 190px 190px 16px 16px;
+}
+
+/* Double printed rule following the arch. Lives on the (non-scrolling)
+   wrapper so it stays put if a small phone has to scroll the card. */
+.card-wrap::before,
+.card-wrap::after {
+  content: '';
+  position: absolute;
+  z-index: 2;
+  border-radius: var(--arch);
+  pointer-events: none;
+}
+
+.card-wrap::before {
+  inset: 10px;
+  border: 1.5px solid color-mix(in srgb, var(--brass) 75%, transparent);
+}
+
+.card-wrap::after {
+  inset: 15px;
+  border: 1px solid color-mix(in srgb, var(--brass) 35%, transparent);
+}
+
+.card {
+  position: relative;
+  z-index: 1;
+  max-height: calc(100dvh - 80px);
+  overflow-y: auto;
+  padding: 30px 32px 32px;
+  background: var(--paper);
+  color: var(--ink);
+  text-align: center;
+  border-radius: var(--arch);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.45);
+  user-select: text;
+  -webkit-user-select: text;
+  outline: none;
+  scrollbar-width: none;
+}
+
+.card__orbit {
+  display: block;
+  width: 96px;
+  height: 36px;
+  margin: 0 auto 8px;
+  overflow: visible;
+  color: var(--brass);
+}
+
+.card .underline {
+  display: block;
+  margin: 2px auto 6px;
+}
+
+/* Card doodles: some peek from behind (z 0), most sit on the edge (z 3) */
+.card-wrap .doodle { z-index: 3; }
+.c-blob { width: 116px; left: -40px; bottom: 70px; z-index: 0 !important; --r0: -8deg; --r1: 6deg; --dur: 9s; }
+.c-thistle { width: 70px; top: 58px; left: -22px; --dur: 5.5s; }
+.c-planet { width: 78px; top: 22px; right: -22px; --r0: -14deg; --r1: 4deg; --dur: 7s; }
+.c-marigold { width: 66px; right: -18px; bottom: -16px; --r0: -25deg; --r1: 15deg; --dur: 7.5s; }
+.c-swirl { width: 44px; left: 14px; bottom: -18px; --r0: 0deg; --r1: 50deg; --dur: 8s; }
+.c-spark { width: 22px; top: 128px; right: 18px; --dur: 3.5s; }
+
+.card .kicker {
+  color: var(--rust);
+}
+
+.card .names {
+  margin: 12px 0 6px;
+  font-size: clamp(44px, 13vw, 58px);
+  color: var(--wordmark);
+}
+
+.card .tagline {
+  color: var(--ink);
+  opacity: 0.8;
+}
+
+.rule {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 22px auto;
+  color: var(--brass);
+}
+
+.rule svg {
+  width: 72px;
+  height: 10px;
+  overflow: visible;
+}
+
+.rule .rule__star {
+  width: 16px;
+  height: 16px;
+}
+
+.card__section + .card__section {
+  margin-top: 22px;
+}
+
+.card .label {
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: color-mix(in srgb, var(--ink) 60%, transparent);
+}
+
+.card p {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.4;
+}
+
+.card__big {
+  font-size: 22px !important;
+  font-weight: 600;
+}
+
+.card__sub {
+  font-style: italic;
+}
+
+.card__small {
+  font-size: 16px !important;
+  opacity: 0.75;
+}
+
+.card__note {
+  font-style: italic;
+  font-size: 20px !important;
+  color: var(--rust);
+}
+
+.card__todo {
+  margin-top: 18px !important;
+  padding: 10px 12px;
+  border: 1px dashed color-mix(in srgb, var(--brass) 70%, transparent);
+  font-size: 14px !important;
+  opacity: 0.7;
+}
+
+.card__foot {
+  margin-top: 22px;
+}
+
+.text-button {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 0;
+  background: none;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--brass);
+  text-underline-offset: 6px;
+  cursor: pointer;
+}
+
+.card__close {
+  position: absolute;
+  z-index: 5;
+  top: max(8px, env(safe-area-inset-top));
+  left: max(8px, env(safe-area-inset-left)); /* mute button owns the top-right */
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+}
+
+.card__close svg {
+  width: 22px;
+  height: 22px;
+  stroke: var(--cream);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
+/* ------------------------------------------------------------------ */
+/* Mute toggle: minimal line icon                                      */
+/* ------------------------------------------------------------------ */
+#mute {
+  position: fixed;
+  top: max(10px, env(safe-area-inset-top));
+  right: max(10px, env(safe-area-inset-right));
+  z-index: 30;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+  opacity: 0.8;
+}
+
+#mute svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: var(--cream);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+#mute .mute__cross,
+#mute[aria-pressed='true'] .mute__waves {
+  display: none;
+}
+
+#mute[aria-pressed='true'] .mute__cross {
+  display: inline;
+}
+
+/* ------------------------------------------------------------------ */
+/* Loader                                                              */
+/* ------------------------------------------------------------------ */
+#loader {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 14px;
+  background: var(--sky-top);
+  color: var(--cream);
+  font-style: italic;
+  font-size: 20px;
+}
+
+#loader p {
+  margin: 0;
+}
+
+.loader__bar {
+  width: 120px;
+  height: 1px;
+  overflow: hidden;
+  background: rgba(251, 244, 232, 0.2);
+}
+
+.loader__bar span {
+  display: block;
+  width: 40%;
+  height: 100%;
+  background: var(--brass);
+  animation: slide 1.2s ease-in-out infinite;
+}
+
+@keyframes slide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Debug bar (?debug)                                                  */
+/* ------------------------------------------------------------------ */
+.debug {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  padding: 8px 8px max(8px, env(safe-area-inset-bottom));
+  background: rgba(10, 5, 20, 0.82);
+  color: #fff;
+  font: 12px/1.2 ui-monospace, Menlo, monospace;
+  user-select: none;
+}
+
+.debug__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.debug button,
+.debug select {
+  min-height: 30px;
+  padding: 0 8px;
+  border: 1px solid #fff4;
+  border-radius: 6px;
+  background: #fff1;
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+.debug input[type='range'] {
+  flex: 1;
+  min-width: 140px;
+}
+
+.debug a {
+  color: var(--lilac);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .doodle,
+  .begin,
+  .loader__bar span {
+    animation: none;
+  }
+}
