@@ -214,8 +214,8 @@ export const CONFIG = {
     // Impatience easter egg: after this long on the title screen without a
     // tap, the impatient clips start mixing in (this fraction of the time),
     // with a red "!" popping up over the impatient Mii's head.
-    impatientAfter: 120,
-    impatientChance: 0.6,
+    impatientAfter: 45,
+    impatientChance: 0.7,
     imageClipDuration: 3,
     exclaim: { x: 0.5, y: 0.1, size: 30, color: '#E2312B' }, // the "!" (position in the Mii box, 0–1) // GIF/WebP idles switch after this long (browsers can't tell when a GIF ends)
     chromaKey: {
