@@ -1,0 +1,28 @@
+<!doctype html>
+<!--
+  The "family" link: …/family/ simply forwards to the main page with
+  ?family, which switches on "Add someone" in the form (see src/rsvp.js).
+  GitHub Pages has no routing, so this little page is what makes /family/ work.
+  The preview tags match index.html so a shared /family/ link still looks nice.
+-->
+<html lang="en-AU">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Vik & Zoe · Save the Date</title>
+    <meta name="robots" content="noindex" />
+    <meta name="theme-color" content="#140C26" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Vik & Zoe · Save the Date" />
+    <meta property="og:description" content="We're getting married! 22 August 2027 · Brisbane. Tap to begin." />
+    <meta name="twitter:card" content="summary" />
+    <meta http-equiv="refresh" content="0; url=../?family" />
+    <script>
+      location.replace('../?family' + location.hash);
+    </script>
+    <style>
+      html { background: #140c26; }
+    </style>
+  </head>
+  <body></body>
+</html>
