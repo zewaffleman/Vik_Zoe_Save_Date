@@ -70,7 +70,7 @@ export const DETAILS = {
     you: 'You',
     guest: 'Guest', // "Guest 2", "Guest 3"…
     addPerson: 'Add someone',
-    submit: 'Count us in',
+    submit: 'Count me in',
     sending: 'Sending…',
 
     updates: {
