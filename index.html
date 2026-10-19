@@ -6,6 +6,17 @@
     <title>Vik & Zoe · Save the Date</title>
     <meta name="description" content="Vik & Zoe are getting married. Save the date: 22 August 2027, Brisbane." />
     <meta name="theme-color" content="#140C26" />
+    <!-- favicon: a little ringed planet (inline SVG, no file needed) -->
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='16' fill='%23EC9AA3' stroke='%232E1A3A' stroke-width='3'/%3E%3Cellipse cx='32' cy='34' rx='28' ry='8' fill='none' stroke='%23A3B437' stroke-width='4' transform='rotate(-18 32 34)'/%3E%3C/svg%3E"
+    />
+    <!-- link previews (Messages, WhatsApp, socials). TODO: add og:image (1200×630) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Vik & Zoe · Save the Date" />
+    <meta property="og:description" content="We're getting married! 22 August 2027 · Brisbane. Tap to begin." />
+    <meta property="og:url" content="https://zewaffleman.github.io/Vik_Zoe_Save_Date/" />
+    <meta name="twitter:card" content="summary" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -116,14 +127,33 @@
         <section class="card__section">
           <h3 class="label">When</h3>
           <p class="card__big"><span data-slot="day"></span>, <span data-slot="date"></span></p>
-          <p data-slot="time"></p>
+          <p class="card__sub" data-slot="timeNote"></p>
+          <div class="chips chips--pair">
+            <a class="chip" data-link="gcal" target="_blank" rel="noopener">Google Calendar</a>
+            <a class="chip" data-link="ics">Apple / Outlook</a>
+          </div>
         </section>
 
         <section class="card__section">
           <h3 class="label">Where</h3>
-          <p class="card__big" data-slot="venue"></p>
-          <p class="card__sub" data-slot="area"></p>
-          <p class="card__small" data-slot="address"></p>
+          <!-- the whole address is the link: phone's maps app, or Google Maps on desktop -->
+          <a class="place-link" data-link="maps">
+            <span class="card__big" data-slot="venue"></span>
+            <span class="card__sub" data-slot="area"></span>
+            <span class="card__small" data-slot="address"></span>
+            <span class="place-link__hint">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-6.2-6.5-11.2a6.5 6.5 0 0 1 13 0C18.5 14.8 12 21 12 21z" /><circle cx="12" cy="9.8" r="2.3" /></svg>
+              Open in maps
+            </span>
+          </a>
+          <button class="tiny-button" type="button" data-copy-address>Copy address</button>
+        </section>
+
+        <section class="card__section">
+          <h3 class="label" data-slot="vibesLabel"></h3>
+          <div class="chips">
+            <a class="chip chip--vibes" data-link="pinterest" target="_blank" rel="noopener"><span data-slot="vibesButton"></span></a>
+          </div>
         </section>
 
         <div class="rule" aria-hidden="true">
@@ -131,7 +161,106 @@
         </div>
 
         <p class="card__note" data-slot="note"></p>
-        <p class="card__todo">Maps, calendar &amp; RSVP arrive in step 6.</p>
+
+        <!-- "Let us know" form → Google Sheet (src/rsvp.js) -->
+        <section class="rsvp" aria-labelledby="rsvp-heading">
+          <h3 id="rsvp-heading" class="rsvp__heading" data-f="heading"></h3>
+          <p class="rsvp__intro" data-f="intro"></p>
+          <p class="rsvp__by" data-f="replyBy"></p>
+
+          <form novalidate>
+            <fieldset class="person rsvp-main">
+              <legend class="label" data-f="you"></legend>
+              <div class="field-row">
+              <div class="field">
+                <label for="rsvp-first">First name</label>
+                <input id="rsvp-first" name="first" type="text" autocomplete="given-name" aria-describedby="rsvp-first-err" />
+                <p class="field-error" id="rsvp-first-err"></p>
+              </div>
+              <div class="field">
+                <label for="rsvp-last">Last name</label>
+                <input id="rsvp-last" name="last" type="text" autocomplete="family-name" aria-describedby="rsvp-last-err" />
+                <p class="field-error" id="rsvp-last-err"></p>
+              </div>
+              </div>
+              <div class="field">
+                <label for="rsvp-email">Email</label>
+                <input id="rsvp-email" name="email" type="email" autocomplete="email" aria-describedby="rsvp-email-err" inputmode="email" />
+                <p class="field-error" id="rsvp-email-err"></p>
+              </div>
+              <div class="field">
+                <label for="rsvp-phone">Phone <span class="optional">(optional)</span></label>
+                <input id="rsvp-phone" name="phone" type="tel" autocomplete="tel" aria-describedby="rsvp-phone-err" inputmode="tel" />
+                <p class="field-error" id="rsvp-phone-err"></p>
+              </div>
+            </fieldset>
+
+            <div class="rsvp-guests"></div>
+
+            <button class="add-person" type="button" data-add-guest>
+              <span class="add-person__plus" aria-hidden="true">+</span> <span data-f="add"></span>
+            </button>
+
+            <fieldset class="updates">
+              <legend class="label" data-f="updatesLabel"></legend>
+              <label class="check"><input type="checkbox" name="updates" /><span data-f="optIn"></span></label>
+              <div class="rsvp-channels" hidden>
+                <p class="updates__how" data-f="howLabel"></p>
+                <div class="rsvp-channel-list"></div>
+                <p class="field-error" aria-live="polite"></p>
+              </div>
+              <p class="updates__privacy" data-f="privacy"></p>
+            </fieldset>
+
+            <!-- honeypot: hidden from people, irresistible to bots -->
+            <div class="hp" aria-hidden="true">
+              <label>Leave this empty <input type="text" name="website" tabindex="-1" autocomplete="off" /></label>
+            </div>
+
+            <button class="btn-primary" type="submit"></button>
+            <p class="rsvp-status" role="status" aria-live="polite"></p>
+          </form>
+
+          <div class="rsvp-done" hidden tabindex="-1">
+            <svg class="doodle d1" data-doodle="sparkle"></svg>
+            <svg class="doodle d2" data-doodle="marigold"></svg>
+            <svg class="doodle d3" data-doodle="sparkle-light"></svg>
+            <p class="rsvp__heading" data-f="successHeading"></p>
+            <p class="rsvp-done__body" data-f="successBody"></p>
+            <button class="text-button" type="button" data-edit><span data-f="edit"></span></button>
+          </div>
+
+          <template id="guest-template">
+            <fieldset class="person person--guest">
+              <legend class="label"></legend>
+              <button class="person__remove" type="button" data-remove aria-label="Remove this person">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17" /></svg>
+              </button>
+              <div class="field-row">
+            <div class="field">
+              <label data-for="g-first">First name</label>
+              <input data-id="g-first" name="first" type="text" autocomplete="off" />
+              <p class="field-error"></p>
+            </div>
+            <div class="field">
+              <label data-for="g-last">Last name</label>
+              <input data-id="g-last" name="last" type="text" autocomplete="off" />
+              <p class="field-error"></p>
+            </div>
+              </div>
+            <div class="field">
+              <label data-for="g-email">Email <span class="optional">(optional)</span></label>
+              <input data-id="g-email" name="email" type="email" autocomplete="off" inputmode="email" />
+              <p class="field-error"></p>
+            </div>
+            <div class="field">
+              <label data-for="g-phone">Phone <span class="optional">(optional)</span></label>
+              <input data-id="g-phone" name="phone" type="tel" autocomplete="off" inputmode="tel" />
+              <p class="field-error"></p>
+            </div>
+            </fieldset>
+          </template>
+        </section>
 
         <footer class="card__foot">
           <button class="text-button" type="button" data-replay>Watch again</button>
@@ -140,13 +269,6 @@
       </div>
     </div>
 
-    <button id="mute" type="button" aria-pressed="false" aria-label="Mute sound">
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path class="mute__speaker" d="M4 9.5v5h3.5L12 18V6L7.5 9.5H4z" />
-        <path class="mute__waves" d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" />
-        <path class="mute__cross" d="M16 9.5l5 5M21 9.5l-5 5" />
-      </svg>
-    </button>
 
     <!-- Lightweight loading state; removed once images are ready -->
     <div id="loader" aria-live="polite">

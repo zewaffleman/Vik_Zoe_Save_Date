@@ -18,7 +18,7 @@
  *  - What the Miis are doing (data-pose="idle" | "walk") and which way they
  *    face (data-flip) are attributes set with tl.set, so they scrub
  *    backwards correctly. fx/miiClips.js picks the matching render.
- *  - Walk durations = distance ÷ CONFIG.miis.walkSpeed, so the walk render's
+ *  - Walk durations = distance ÷ CONFIG.miis.walkSpeed[who], so the walk render's
  *    stride matches the ground speed.
  *
  * All positions are computed as absolute times (seconds) from CONFIG, so
@@ -55,7 +55,7 @@ function flipFor(dir) {
   return (dir === 'left') === CONFIG.miis.walkFacesRight ? '1' : '0';
 }
 
-export function buildMasterTimeline({ els, poses, walkers, stars, cue, hooks }) {
+export function buildMasterTimeline({ els, poses, walkers, stars, hooks }) {
   const { rocket, flame, earth, planet } = poses;
   const T = CONFIG.title;
   const B = CONFIG.board;
@@ -68,7 +68,7 @@ export function buildMasterTimeline({ els, poses, walkers, stars, cue, hooks }) 
   const tl = gsap.timeline({ paused: true });
   const miiPose = (who, pose, at) => tl.set(els.mii[who], { attr: { 'data-pose': pose } }, at);
   const miiFace = (who, dir, at) => tl.set(els.mii[who], { attr: { 'data-flip': flipFor(dir) } }, at);
-  const walkTime = (from, to) => Math.abs(to - from) / M.walkSpeed;
+  const walkTime = (who, from, to) => Math.abs(to - from) / M.walkSpeed[who];
 
   // =========================================================================
   // STARTING POSE (t=0). Also what restart / scrub-to-start snaps back to.
@@ -93,7 +93,6 @@ export function buildMasterTimeline({ els, poses, walkers, stars, cue, hooks }) 
   // TITLE: text drifts up and fades after the tap
   // =========================================================================
   tl.addLabel('title', 0)
-    .call(cue, ['start'], 0)
     .to(els.titleInner, { y: -40, autoAlpha: 0, duration: T.exitDuration, ease: T.exitEase }, 0)
     .to(els.title, { autoAlpha: 0, duration: 0.2 }, T.exitDuration - 0.2);
 
@@ -107,11 +106,10 @@ export function buildMasterTimeline({ els, poses, walkers, stars, cue, hooks }) 
   for (const who of ['a', 'b']) {
     const from = M.onEarth[who];
     const t = tBoard + (who === 'b' ? B.stagger : 0);
-    const dur = walkTime(from, 0);
+    const dur = walkTime(who, from, 0);
     miiPose(who, 'walk', t);
     miiFace(who, from < 0 ? 'right' : 'left', t); // walking toward the rocket
     tl.to(walkers[who], { dx: 0, duration: dur, ease: 'none' }, t)
-      .call(cue, ['board'], t + dur - B.vanish)
       .to(els.mii[who], { autoAlpha: 0, duration: B.vanish }, t + dur - B.vanish);
     tAboard = Math.max(tAboard, t + dur);
   }
@@ -123,7 +121,6 @@ export function buildMasterTimeline({ els, poses, walkers, stars, cue, hooks }) 
   const tLift = tAboard + B.passengersPop;
   const tRumble = tLift + L.crouchDuration;
   tl.addLabel('liftoff', tLift)
-    .call(cue, ['crouch'], tLift)
     .to(rocket, { scaleX: L.crouchScale.x, scaleY: L.crouchScale.y, duration: L.crouchDuration, ease: L.crouchEase }, tLift)
     .to(els.flame, { autoAlpha: 1, duration: 0.1 }, tRumble)
     .to(flame, { scaleX: 0.6, scaleY: 0.5, duration: L.rumbleDuration, ease: 'power1.out' }, tRumble)
@@ -135,7 +132,6 @@ export function buildMasterTimeline({ els, poses, walkers, stars, cue, hooks }) 
 
   const tLaunch = tRumble + L.rumbleDuration;
   tl.addLabel('launch', tLaunch)
-    .call(cue, ['liftoff'], tLaunch)
     .to(rocket, { x: L.cruise.x, y: L.cruise.y, duration: L.launchDuration, ease: L.launchEase }, tLaunch)
     .to(rocket, { scaleX: L.launchStretch.x, scaleY: L.launchStretch.y, duration: 0.12, ease: 'power2.out' }, tLaunch)
     .to(rocket, { scaleX: 1, scaleY: 1, duration: L.stretchRelax, ease: 'elastic.out(1, 0.5)' }, tLaunch + 0.12)
@@ -172,7 +168,6 @@ export function buildMasterTimeline({ els, poses, walkers, stars, cue, hooks }) 
   // =========================================================================
   const tLand = tJourney + J.duration;
   tl.addLabel('landing', tLand)
-    .call(cue, ['landing'], tLand)
     .to(planet, { y: CONFIG.planet.rest.y, duration: D.planetEnterDuration, ease: D.planetEnterEase }, tLand)
     .to(stars, { speed: CONFIG.stars.idleSpeed, duration: D.starSlowDuration, ease: D.starSlowEase }, tLand)
     .to(rocket, { x: CONFIG.planet.rest.x, y: D.hoverY, rotation: 0, duration: D.hoverDuration, ease: D.hoverEase }, tLand)
@@ -183,7 +178,6 @@ export function buildMasterTimeline({ els, poses, walkers, stars, cue, hooks }) 
   // TOUCHDOWN: squash + elastic recover
   const tTouch = tLand + D.hoverDuration + D.descendDuration;
   tl.addLabel('touchdown', tTouch)
-    .call(cue, ['touchdown'], tTouch)
     .to(rocket, { scaleX: D.squash.x, scaleY: D.squash.y, duration: D.squashDuration, ease: 'power2.out' }, tTouch)
     .to(rocket, { scaleX: 1, scaleY: 1, duration: D.recoverDuration, ease: D.recoverEase }, tTouch + D.squashDuration)
     .to(planet, { scaleX: D.planetSquash.x, scaleY: D.planetSquash.y, duration: D.squashDuration, ease: 'power2.out' }, tTouch)
@@ -197,13 +191,12 @@ export function buildMasterTimeline({ els, poses, walkers, stars, cue, hooks }) 
   // =========================================================================
   const tOut = tTouch + D.squashDuration + D.recoverDuration * 0.5 + X.delay;
   tl.addLabel('disembark', tOut)
-    .call(cue, ['disembark'], tOut)
     .to(els.passengers, { autoAlpha: 0, scale: 0.4, duration: 0.15, ease: 'power2.in' }, tOut);
   const arrive = {};
   for (const who of ['a', 'b']) {
     const t = tOut + 0.1 + (who === 'b' ? X.stagger : 0);
     const to = M.onIo[who];
-    const dur = walkTime(0, to);
+    const dur = walkTime(who, 0, to);
     tl.set(walkers[who], { body: 1, dx: 0, lift: 0 }, t)
       .set(poses.mii[who], { scaleX: 1, scaleY: 1 }, t);
     miiPose(who, 'walk', t);
@@ -233,7 +226,7 @@ export function buildMasterTimeline({ els, poses, walkers, stars, cue, hooks }) 
  * crossfade from the Earth scene to the final scene on Io. No stepping,
  * walking, shaking, parallax, or squash.
  */
-export function buildReducedTimeline({ els, poses, walkers, stars, cue, hooks }) {
+export function buildReducedTimeline({ els, poses, walkers, stars, hooks }) {
   const { rocket, earth, planet } = poses;
   const R = CONFIG.reducedMotion;
   const M = CONFIG.miis;
@@ -256,7 +249,6 @@ export function buildReducedTimeline({ els, poses, walkers, stars, cue, hooks })
   }
 
   tl.addLabel('title', 0)
-    .call(cue, ['start'], 0)
     .to(els.title, { autoAlpha: 0, duration: 0.4 }, 0);
   const t1 = 0.4;
   ['board', 'liftoff', 'launch', 'journey'].forEach((l) => tl.addLabel(l, t1));

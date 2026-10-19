@@ -29,6 +29,12 @@
  */
 import { gsap } from 'gsap';
 
+const allPlayers = [];
+/** Pause/resume every Mii and passenger clip (e.g. while the info card covers them). */
+export function pauseClips(on) {
+  allPlayers.forEach((p) => p.freeze(on));
+}
+
 const isImage = (src) => /\.(gif|webp|png|apng)(\?|#|$)/i.test(src);
 const now = () => performance.now() / 1000;
 
@@ -43,6 +49,7 @@ export function createMiiPlayer(container, clipSet, opts) {
     idleHold = [3, 6],
     impatientChance = 0.5,
     onClip, // optional: called with each clip as it starts (e.g. to show the "!")
+    eager = true, // false: don't download until unlock() (the first tap)
   } = opts;
 
   // --- one element per distinct file (several clips can share a file) --------
@@ -69,6 +76,7 @@ export function createMiiPlayer(container, clipSet, opts) {
         src,
         kind: 'video',
         el: v,
+        active: v, // the copy currently on screen (see `twin` below)
         ready: new Promise((res) => {
           if (v.readyState >= 2) res();
           v.addEventListener('loadeddata', res, { once: true });
@@ -81,9 +89,25 @@ export function createMiiPlayer(container, clipSet, opts) {
     return f;
   };
 
+  /**
+   * Looping a SECTION means jumping back in the video, and seeks aren't
+   * instant: you'd see a hitch at every seam. So section-looped clips get a
+   * second copy of the video (a "twin") that waits, already parked at the
+   * loop start; at the seam we swap which copy is drawn. No seek on screen.
+   */
+  const addTwin = (f) => {
+    if (f.twin || f.kind !== 'video') return;
+    const t = f.el.cloneNode();
+    t.muted = true; // cloneNode copies attributes, not the muted property
+    container.appendChild(t);
+    f.twin = t;
+  };
+  const videosOf = (f) => (f.twin ? [f.el, f.twin] : [f.el]);
+
   // A clip = a file + how to show it (mirror, foot alignment, loop section)
   const clip = (spec) => {
     const s = typeof spec === 'string' ? { src: spec } : spec;
+    if (s.loop) addTwin(file(s.src));
     const foot = { x: s.foot?.x ?? anchor.x, y: s.foot?.y ?? anchor.y };
     const fx = s.mirror ? 1 - foot.x : foot.x;
     const shift = `translate(${((anchor.x - fx) * 100).toFixed(2)}%, ${((anchor.y - foot.y) * 100).toFixed(2)}%)`;
@@ -94,6 +118,14 @@ export function createMiiPlayer(container, clipSet, opts) {
     idle: [(clipSet.idleEarth ?? []).map(clip), (clipSet.idleIo ?? []).map(clip)], // [Earth, Io]
     impatient: (clipSet.impatient ?? []).map((spec) => ({ ...clip(spec), impatient: true })),
   };
+
+  // Only the clips on screen at the start download straight away (walk +
+  // Earth idles). The rest wait for the first tap (see unlock()), so the
+  // title screen loads faster.
+  const firstNeeded = new Set(eager ? [clips.walk, ...clips.idle[0]].map((c) => c.file) : []);
+  for (const f of files.values()) {
+    if (f.kind === 'video' && !firstNeeded.has(f)) videosOf(f).forEach((v) => (v.preload = 'metadata'));
+  }
 
   // --- canvas + keyer for video clips ----------------------------------------
   const canvas = document.createElement('canvas');
@@ -112,10 +144,11 @@ export function createMiiPlayer(container, clipSet, opts) {
   let imageTimer = null;
   let lastDraw = -Infinity;
   let needsDraw = false; // reduced motion: draw a single still frame
+  let frozen = false; // paused while the info card covers the scene
 
   function show(c, { loop = false } = {}) {
     if (current && current.file !== c.file) {
-      if (current.file.kind === 'video') current.file.el.pause();
+      if (current.file.kind === 'video') videosOf(current.file).forEach((v) => v.pause());
       else current.file.el.style.visibility = 'hidden';
     }
     imageTimer?.kill();
@@ -125,6 +158,7 @@ export function createMiiPlayer(container, clipSet, opts) {
     if (f.kind === 'video') {
       canvas.style.visibility = 'visible';
       canvas.style.transform = c.transform;
+      f.active = f.el;
       f.el.loop = loop && !c.loop; // a loop *section* is handled in the ticker below
       f.el.currentTime = c.loop ? c.loop[0] : 0;
       if (reduced) {
@@ -166,10 +200,25 @@ export function createMiiPlayer(container, clipSet, opts) {
   }
 
   gsap.ticker.add((time) => {
-    if (!current || current.file.kind !== 'video') return;
-    const v = current.file.el;
+    if (frozen || !current || current.file.kind !== 'video') return;
+    const f = current.file;
+    let v = f.active;
     // looping just a section (e.g. the part of a walk render facing one way)
-    if (current.loop && !reduced && v.currentTime >= current.loop[1]) v.currentTime = current.loop[0];
+    if (current.loop && !reduced) {
+      const [from, to] = current.loop;
+      const spare = f.twin && (v === f.el ? f.twin : f.el);
+      // keep the spare copy parked at the loop start, ready to take over
+      if (spare && spare.paused && !spare.seeking && Math.abs(spare.currentTime - from) > 0.02) spare.currentTime = from;
+      if (v.currentTime >= to - 1 / 120) {
+        if (spare && spare.readyState >= 2 && !spare.seeking) {
+          spare.play().catch(() => {});
+          v.pause();
+          f.active = v = spare; // swap: no visible seek
+        } else {
+          v.currentTime = from; // fallback: plain jump back
+        }
+      }
+    }
     // draw the current frame through the keyer, at `fps` (0 = every frame)
     if (v.readyState < 2 || (reduced && !needsDraw)) return;
     if (fps && time - lastDraw < 1 / fps) return;
@@ -178,7 +227,7 @@ export function createMiiPlayer(container, clipSet, opts) {
     keyer.draw(v);
   });
 
-  return {
+  const player = {
     /** Files needed before the title screen shows (walk + Earth idles). */
     ready: Promise.all([clips.walk, ...clips.idle[0]].map((c) => c.file.ready)),
 
@@ -201,15 +250,30 @@ export function createMiiPlayer(container, clipSet, opts) {
 
     /**
      * Call inside the first tap. iOS Low Power Mode blocks video autoplay
-     * until a user gesture, so "touch" every video once, then resume.
+     * until a user gesture, so "touch" every video once, then resume. This
+     * also starts downloading the clips that were held back.
      */
     unlock() {
       for (const f of files.values()) {
         if (f.kind !== 'video') continue;
-        f.el.play().then(() => current?.file !== f && f.el.pause()).catch(() => {});
+        for (const v of videosOf(f)) {
+          v.preload = 'auto';
+          v.play().then(() => (current?.file !== f || v !== f.active) && v.pause()).catch(() => {});
+        }
       }
     },
+
+    /** Hold the current frame (true) or carry on playing (false). */
+    freeze(on) {
+      if (on === frozen) return;
+      frozen = on;
+      if (!current || current.file.kind !== 'video' || reduced) return;
+      if (on) current.file.active.pause();
+      else current.file.active.play().catch(() => {});
+    },
   };
+  allPlayers.push(player);
+  return player;
 }
 
 // ---------------------------------------------------------------------------

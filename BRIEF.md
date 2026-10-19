@@ -9,7 +9,7 @@ Build a single-page, mobile-first web app that works as a wedding save-the-date.
 - [x] 3. Build placeholder-asset version with full timeline and config object
 - [ ] 4. Iterate on timing and feel (round 1 done: see "Direction update" below)
 - [ ] 5. Swap in real assets
-- [ ] 6. Build info panel, calendar, and RSVP integration (don't start until animation is approved)
+- [x] 6. Build info panel, calendar, and RSVP integration (form in test mode until the Apps Script URL is set in src/details.js)
 - [ ] 7. Deploy, then final check on real phone sizes
 
 ## Event details
@@ -19,7 +19,7 @@ All of these live in `src/config.js` so they can be edited in one place.
 |---|---|
 | Couple | Vik & Zoe |
 | Date | Sunday 22 August 2027 |
-| Start time | 3:00pm **(placeholder, TBC)** |
+| Start time | All-day save the date (times come with the formal invitation) |
 | End time | 11:00pm (could run to midnight, so keep it editable) |
 | Time zone | `Australia/Brisbane` (AEST, UTC+10, no daylight saving) |
 | Venue name | The Summit Restaurant, Mount Coot-tha |
@@ -39,7 +39,7 @@ All of these live in `src/config.js` so they can be edited in one place.
 - **Two Miis (Vik & Zoe)** board the rocket on Earth and get off on Io, then plant a date flag, walk off, and sit together before the moon invites a tap.
 
 ## Storyboard
-1. **Title screen:** elegant text on the night sky: "Save the date · Vik & Zoe · are getting married · 22 · 08 · 2027 · Brisbane, Australia" with an understated "Tap to begin". This tap also unlocks browser audio.
+1. **Title screen:** elegant text on the night sky: "Save the date · Vik & Zoe · are getting married · 22 · 08 · 2027 · Brisbane, Australia" with an understated "Tap to begin".
 2. **Board:** the two Miis walk to the rocket and hop in through the door. Their faces appear in the porthole.
 3. **Liftoff:** the rocket crouches, rumbles and launches from Earth (3D globe drops away).
 4. **Journey:** the rocket swoops through a parallax starfield (~6s; liftoff + journey ≈ 8s).
@@ -108,14 +108,12 @@ I want a pseudo hand-animated, Nintendo-quality feel, with real control over tim
 - Outline "boil" made by cycling the PNG drawings (see Assets).
 - Parallax star layers with slow drift; occasional twinkle.
 - Planet shake: rotation and scale oscillation with decaying amplitude, repeating gently until tapped.
-- **Put ALL timings, easings, fps values, distances, colours, event details, and audio cues in one clearly commented config object** (`src/config.js`) so I can tweak everything myself without re-prompting.
+- **Put ALL timings, easings, fps values, distances, colours and clip settings in one clearly commented config object** (`src/config.js`) so I can tweak everything myself without re-prompting.
 - **`?debug` in the URL** shows a scrubber, play/pause, scene-jump buttons, a speed control (0.25×–2×), and a live readout of the current label and time.
 - **`prefers-reduced-motion`:** fall back to a ~2s crossfade from Earth to the planet, with no stepping, shaking, or parallax. The planet shows a gentle "tap me" hint instead of shaking.
 
 ## Audio
-- Audio files will be provided later. For now, build empty hooks and a mute toggle.
-- Audio must only start after the first tap.
-- **Scheduling approach:** sound cues are tied to named points in the master timeline (e.g. `liftoff` → whoosh, `landing` → boing, `prompt` → a soft chime). This keeps sound in sync with scrubbing and replay. Adding a sound means dropping the file into `public/assets/audio/` and naming it in the config's cue list. Background music, if any, is one looping track that fades in after the tap.
+Dropped: the site is silent by design (no music, sound effects or mute button).
 
 ## Post-tap info panel
 The panel slides or pops in with the same bouncy style. Contents, in order:
@@ -143,30 +141,35 @@ The panel slides or pops in with the same bouncy style. Contents, in order:
 ## File structure
 ```
 Wedding_Save_the_date/
-├── index.html              # markup for every scene + info panel
+├── index.html              # markup for every scene + the info card / form
 ├── src/
-│   ├── config.js           # ALL tweakables: event details, timings, fps, easings, colours, audio cues
-│   ├── main.js             # boot: preload, title screen, audio unlock
-│   ├── timeline.js         # the GSAP master timeline (scenes as labelled sub-timelines)
-│   ├── fx/
-│   │   ├── stepped.js      # "on twos" helper: per-element fps for tweens
-│   │   ├── boil.js         # cycles 2–3 PNG drawings per element
-│   │   ├── stars.js        # parallax layers, drift, twinkle
-│   │   └── shake.js        # decaying planet shake, repeats until tapped
-│   ├── audio.js            # mute toggle + timeline-label cue hooks
+│   ├── details.js          # ⭐ wedding info + all card/form wording + Sheet URL
+│   ├── config.js           # ⭐ animation tweakables: timings, fps, easings, colours and clips
+│   ├── main.js             # boot: wires everything together
+│   ├── timeline.js         # the GSAP master timeline (labelled scenes)
+│   ├── calendar.js         # Google Calendar link, wedding.ics, maps links
+│   ├── rsvp.js             # the "let us know" form → Google Sheet
 │   ├── debug.js            # ?debug scrubber + scene-jump buttons
-│   └── styles.css
-├── public/assets/          # placeholder PNGs now → real art later (same filenames)
-│   ├── rocket/  planet/  earth/  stars/  background/
-│   └── audio/
-├── vite.config.js          # base path for GitHub Pages
-└── .github/workflows/deploy.yml
+│   ├── styles.css
+│   └── fx/
+│       ├── stepped.js      # "on twos" movement helper
+│       ├── boil.js         # cycles hand-drawn PNG frames (rocket, flame)
+│       ├── globe.js        # 3D Earth / Io (three.js)
+│       ├── miiClips.js     # rendered Mii + passenger clips, green-screen keyed live
+│       ├── doodles.js      # whimsical SVG doodles + hand-drawn frames
+│       ├── stars.js        # parallax starfield + twinkles
+│       └── shake.js        # the moon wiggle
+├── public/assets/          # everything the site loads (and nothing else: it all gets deployed)
+│   ├── rocket/  miis/  stars/  textures/
+├── apps-script/            # Google Apps Script for the Sheet + setup steps (README.md)
+├── art-archive/            # finished art not currently used (kept, never deployed)
+├── vite.config.js          # base path + generates wedding.ics from details.js
+└── .github/workflows/deploy.yml  # GitHub Pages deploy on push to main
 ```
 
 ## Open items
-- Real **Mii drawings** for Vik and Zoe (placeholders are generic).
-- Ceremony/event **start time** (3:00pm placeholder).
-- Final **end time** (11pm or midnight).
-- **Pinterest board** URL.
-- Confirm **RSVP fields** and "Can you make it?" wording.
-- Real **art** and **audio** files.
+- **Pinterest board** URL (`src/details.js` → `pinterest.url`).
+- **Google Sheet:** deploy `apps-script/Code.gs` and paste the URL into `src/details.js` → `form.endpoint` (form is in test mode until then).
+- **Link preview image** (`og:image`, 1200×630) and a home-screen icon.
+- **Real-phone testing**: iPhone Safari (incl. Low Power Mode), Android, and in-app browsers (Messages / WhatsApp / Instagram).
+- Optional: re-export walk loops (just the looped section, 30fps) to roughly halve video weight.

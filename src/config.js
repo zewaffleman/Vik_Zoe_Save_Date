@@ -29,28 +29,11 @@
  * ============================================================================
  */
 
+import { DETAILS } from './details.js';
+
 export const CONFIG = {
-  // --------------------------------------------------------------------------
-  //  EVENT DETAILS (info panel, calendar links, .ics file)
-  // --------------------------------------------------------------------------
-  event: {
-    couple: 'Vik & Zoe',
-    // Local Brisbane time, "YYYY-MM-DDTHH:mm". Brisbane has no daylight saving
-    // (always UTC+10) but we still name the zone explicitly.
-    start: '2027-08-22T15:00', // TODO: start time TBC (placeholder)
-    end: '2027-08-22T23:00', // could be midnight, so change here
-    timeZone: 'Australia/Brisbane',
-    utcOffset: '+10:00', // keep in sync with timeZone
-    city: 'Brisbane, Australia',
-    venue: {
-      name: 'The Summit Restaurant',
-      area: 'Mount Coot-tha',
-      address: '1/1012 Sir Samuel Griffith Dr, Mount Coot-tha QLD 4066',
-    },
-    rsvpDeadline: '2026-12-01',
-    pinterestUrl: 'https://www.pinterest.com/', // TODO: real board link
-    note: 'Formal invitation to follow',
-  },
+  // Wedding details & wording live in details.js (one place for it all)
+  event: DETAILS,
 
   // --------------------------------------------------------------------------
   //  COLOURS (concept board). Applied as CSS variables, e.g. var(--rust).
@@ -69,8 +52,8 @@ export const CONFIG = {
     paper: '#FBF7F0', // info card background
     // Night sky gradient, top → bottom
     skyTop: '#140C26',
-    skyMid: '#342152',
-    skyBottom: '#7A4470',
+    skyMid: '#ec9aa480',
+    skyBottom: '#c24b3386',
   },
 
   // --------------------------------------------------------------------------
@@ -201,12 +184,16 @@ export const CONFIG = {
     // The sprite's ground point, in the render box (0–1). Each clip's own
     // `foot` (in assets.miis) is shifted to line up with this.
     foot: { x: 0.5, y: 0.89 },
-    fps: 12, // movement step rate ("on twos")
+    // Movement step rate. 0 = smooth: the renders are already smooth 60fps
+    // animation, and stepping their position on top made the walk stutter.
+    // (The rocket and planets keep their hand-drawn "on twos" steps.)
+    fps: 0,
     clipFps: 0, // redraw rate of the renders: 0 = every frame, 12 = "on twos" too
     resolution: 256, // pixels the render is drawn at (256 is plenty for this size)
-    // Walk speed in stage units/sec. Match it to the stride in the walk render
-    // so feet don't slide; every walk duration is worked out from it.
-    walkSpeed: 60,
+    // Walk speed in stage units/sec, per Mii. Measured from the renders (how
+    // fast the planted foot slides back in the in-place walk), so the feet
+    // stay planted. Every walk duration is worked out from these.
+    walkSpeed: { a: 80, b: 67 },
     walkFacesRight: false, // the walk renders face LEFT (mirrored when walking right)
     // Idles repeat until they've been on screen this long (random in range,
     // seconds), then switch. Stops the short clips flickering.
@@ -247,9 +234,9 @@ export const CONFIG = {
   // --------------------------------------------------------------------------
   title: {
     kicker: 'Save the date',
-    names: 'Vik & Zoe',
-    tagline: 'are getting married',
-    dateLine: '22 · 08 · 2027',
+    names: DETAILS.couple,
+    tagline: DETAILS.tagline,
+    dateLine: DETAILS.dateLine,
     button: 'Tap to begin',
     exitDuration: 0.6,
     exitEase: 'power2.in',
@@ -381,28 +368,5 @@ export const CONFIG = {
     hintDelay: 0.5,
     disableBoil: true,
     stopSpin: true, // planets and clouds hold still
-  },
-
-  // --------------------------------------------------------------------------
-  //  AUDIO: silent until files exist. Put files in /public/assets/audio/ and
-  //  set `file`. Cues fire at their moment during normal playback (and on
-  //  replay / scene buttons in ?debug). Dragging the scrubber is silent.
-  // --------------------------------------------------------------------------
-  audio: {
-    masterVolume: 0.8,
-    music: { file: null, volume: 0.4, fadeIn: 2 },
-    cues: {
-      start: { file: null, volume: 0.8 },
-      board: { file: null, volume: 0.6 }, // they step into the rocket
-      crouch: { file: null, volume: 0.8 },
-      liftoff: { file: null, volume: 0.8 },
-      landing: { file: null, volume: 0.8 },
-      touchdown: { file: null, volume: 0.8 },
-      disembark: { file: null, volume: 0.6 },
-      shake: { file: null, volume: 0.5 },
-      planetTap: { file: null, volume: 0.8 },
-      panelOpen: { file: null, volume: 0.6 },
-      panelClose: { file: null, volume: 0.6 },
-    },
   },
 };

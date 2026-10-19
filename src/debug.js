@@ -6,7 +6,7 @@
  *   - scrubber + live readout of current label and time
  *   - link to toggle the reduced-motion version
  *
- * Scrubbing doesn't fire timeline callbacks (sound cues, shake start), so
+ * Scrubbing doesn't fire timeline callbacks (e.g. starting the moon wiggle), so
  * `onSeek` re-syncs things that depend on "where are we".
  */
 import { gsap } from 'gsap';

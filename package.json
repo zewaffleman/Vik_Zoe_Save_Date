@@ -6,15 +6,13 @@
   "scripts": {
     "dev": "vite --host",
     "build": "vite build",
-    "preview": "vite preview --host",
-    "placeholders": "node scripts/make-placeholders.mjs"
+    "preview": "vite preview --host"
   },
   "dependencies": {
     "gsap": "^3.15.0",
     "three": "^0.186.1"
   },
   "devDependencies": {
-    "@napi-rs/canvas": "^1.0.9",
     "vite": "^8.3.1"
   }
 }

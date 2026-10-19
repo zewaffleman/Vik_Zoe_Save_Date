@@ -4,7 +4,7 @@
  *   1. Theme + text from CONFIG
  *   2. Stage scaling and sprite sizes
  *   3. Sprites (frame cyclers), 3D globes, stepped poses, Mii walkers
- *   4. Stars, audio, moon wiggle
+ *   4. Stars, moon wiggle
  *   5. Master timeline (or the reduced-motion one)
  *   6. Title tap → play, moon tap → info card
  *   7. Preload, then reveal the title screen
@@ -19,11 +19,13 @@ import { stepped, setSmoothAll } from './fx/stepped.js';
 import { frameCycler } from './fx/boil.js';
 import { createStars } from './fx/stars.js';
 import { createShake } from './fx/shake.js';
-import { createGlobe } from './fx/globe.js';
+import { createGlobe, pauseGlobes } from './fx/globe.js';
 import { initDoodles } from './fx/doodles.js';
-import { createMiiPlayer } from './fx/miiClips.js';
-import { createAudio } from './audio.js';
+import { createMiiPlayer, pauseClips } from './fx/miiClips.js';
 import { buildMasterTimeline, buildReducedTimeline, surfacePoint } from './timeline.js';
+import { DETAILS } from './details.js';
+import { googleCalendarUrl, bestMapsLink } from './calendar.js';
+import { initRsvp } from './rsvp.js';
 
 const params = new URLSearchParams(location.search);
 const DEBUG = params.has('debug');
@@ -47,7 +49,6 @@ const els = {
   panel: $('#panel'),
   card: $('.card'),
   cardWrap: $('.card-wrap'),
-  mute: $('#mute'),
   loader: $('#loader'),
 };
 const A = CONFIG.assets;
@@ -156,10 +157,12 @@ for (const who of ['a', 'b']) {
     key: MI.chromaKey,
     resolution: 128,
     anchor: { x: 0.5, y: 0.5 },
+    eager: false, // not needed until liftoff: don't compete with the title screen's downloads
     reduced: REDUCED,
   });
-  passengerPlayers[who].update('idle', 0); // single clip → seamless loop
 }
+// Heads only start (and download) once the guest taps start: see the title click
+const startPassengers = () => Object.values(passengerPlayers).forEach((p) => p.update('idle', 0)); // single clip → seamless loop
 
 const still = REDUCED && CONFIG.reducedMotion.stopSpin;
 const globeOpts = (g) => ({ ...g, spin: still ? 0 : g.spin, cloudSpin: still ? 0 : g.cloudSpin });
@@ -208,30 +211,14 @@ gsap.ticker.add(() => {
 });
 
 // ---------------------------------------------------------------------------
-// 4. Stars, audio, moon wiggle
+// 4. Stars, moon wiggle
 // ---------------------------------------------------------------------------
 const starState = createStars(els.stars, CONFIG.stars, A, { reduced: REDUCED });
 
-const audio = createAudio(CONFIG.audio);
-function renderMute() {
-  els.mute.setAttribute('aria-pressed', String(audio.muted));
-  els.mute.setAttribute('aria-label', audio.muted ? 'Unmute sound' : 'Mute sound');
-}
-renderMute();
-els.mute.addEventListener('click', () => {
-  audio.unlock();
-  audio.setMuted(!audio.muted);
-  renderMute();
-});
 
-let bursts = 0;
 let hopTl = null;
 const shake = createShake(poses.shake, CONFIG.shake, {
-  onBurst() {
-    bursts++;
-    audio.cue('shake');
-    rocketJiggle();
-  },
+  onBurst: () => rocketJiggle(),
 });
 
 /** Rocket gives a little jiggle in sympathy with each wiggle burst. */
@@ -299,15 +286,15 @@ const hooks = {
   },
 };
 const build = REDUCED ? buildReducedTimeline : buildMasterTimeline;
-const tl = build({ els, poses, walkers, stars: starState, cue: (name) => audio.cue(name), hooks });
+const tl = build({ els, poses, walkers, stars: starState, hooks });
 tl.progress(0.0001, true).progress(0, true); // render the t=0 starting pose
 
 /** Re-sync what normally changes via timeline callbacks (after scrub/replay). */
 function syncToTimeline() {
   const t = tl.time();
   setMoonTappable(t >= tl.labels.idle);
+  if (t > tl.labels.board) startPassengers(); // jumped past the tap in ?debug
   stopPrompt();
-  bursts = 0;
   if (t >= tl.labels.prompt && els.panel.hidden) hooks.onPrompt();
 }
 
@@ -315,9 +302,10 @@ function syncToTimeline() {
 // 6. Interaction
 // ---------------------------------------------------------------------------
 els.title.addEventListener('click', () => {
-  audio.unlock(); // must happen inside the tap handler
+  // video playback must be unlocked inside the tap handler (iOS)
   Object.values(miiPlayers).forEach((p) => (p.unlock(), p.setImpatient(false)));
   Object.values(passengerPlayers).forEach((p) => p.unlock());
+  startPassengers();
   if (tl.time() < tl.labels.board) tl.play();
 });
 
@@ -328,7 +316,6 @@ els.planet.addEventListener('click', () => {
   for (const t of [nudge, hintTimer]) t?.kill();
   shake.stop();
   hideHint();
-  audio.cue('planetTap');
   boing?.kill();
   boing = gsap
     .timeline()
@@ -337,41 +324,92 @@ els.planet.addEventListener('click', () => {
   gsap.delayedCall(V.panelDelay, openPanel);
 });
 
-// Info card content (placeholder sections until step 6)
-const ev = CONFIG.event;
-const startDate = new Date(`${ev.start}:00${ev.utcOffset}`);
-const endDate = new Date(`${ev.end}:00${ev.utcOffset}`);
-const fmt = (opts) => new Intl.DateTimeFormat('en-AU', { timeZone: ev.timeZone, ...opts });
-const timeFmt = fmt({ hour: 'numeric', minute: '2-digit' });
-const slot = (name, text) => (els.card.querySelector(`[data-slot="${name}"]`).textContent = text);
+// Info card content: everything comes from details.js
+const ev = DETAILS;
+const day = new Date(`${ev.date}T00:00:00Z`); // all-day: no time zone maths needed
+const fmt = (opts) => new Intl.DateTimeFormat('en-AU', { timeZone: 'UTC', ...opts }).format(day);
+const slot = (name, text) => els.card.querySelectorAll(`[data-slot="${name}"]`).forEach((el) => (el.textContent = text));
 slot('names', ev.couple);
-slot('day', fmt({ weekday: 'long' }).format(startDate));
-slot('date', fmt({ day: 'numeric', month: 'long', year: 'numeric' }).format(startDate));
-slot('time', `${timeFmt.format(startDate)} – ${timeFmt.format(endDate)}`.replace(/\s?([ap]m)/g, '$1'));
+slot('day', fmt({ weekday: 'long' }));
+slot('date', fmt({ day: 'numeric', month: 'long', year: 'numeric' }));
+slot('timeNote', ev.timeNote);
 slot('venue', ev.venue.name);
 slot('area', ev.venue.area);
 slot('address', ev.venue.address);
 slot('note', ev.note);
+slot('vibesLabel', ev.pinterest.label);
+slot('vibesButton', ev.pinterest.button);
+
+const link = (name, href) => (els.card.querySelector(`[data-link="${name}"]`).href = href);
+link('gcal', googleCalendarUrl(ev));
+link('ics', ev.calendar.fileName); // real file (see vite.config.js) → iPhone "Add to Calendar"
+link('pinterest', ev.pinterest.url);
+const maps = bestMapsLink(ev);
+const mapsLink = els.card.querySelector('[data-link="maps"]');
+mapsLink.href = maps.href;
+mapsLink.setAttribute('aria-label', `${ev.venue.name}, ${ev.venue.address}. Open in maps`);
+if (maps.newTab) Object.assign(mapsLink, { target: '_blank', rel: 'noopener' });
+
+const copyBtn = els.card.querySelector('[data-copy-address]');
+copyBtn.addEventListener('click', async () => {
+  const text = `${ev.venue.name}, ${ev.venue.address}`;
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    // older browsers: copy via a temporary text field
+    const ta = Object.assign(document.createElement('textarea'), { value: text });
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+  }
+  copyBtn.textContent = 'Copied ✓';
+  gsap.delayedCall(2, () => (copyBtn.textContent = 'Copy address'));
+});
+
+initRsvp(els.card.querySelector('.rsvp'), { reduced: REDUCED });
+
+/**
+ * While the card is open: make the scene behind it `inert` (so Tab and screen
+ * readers stay inside the card), and pause the 3D planets + Mii videos once
+ * the card has covered them. A blurred backdrop over live WebGL is very
+ * expensive on phones and would make typing in the form feel sluggish.
+ */
+const behindCard = [$('#stage'), els.title];
+function setCardOpen(open) {
+  behindCard.forEach((el) => (el.inert = open));
+  if (!open) {
+    pauseGlobes(false);
+    pauseClips(false);
+  }
+}
 
 function openPanel() {
   const V = CONFIG.reveal;
   els.panel.hidden = false;
-  audio.cue('panelOpen');
+  setCardOpen(true);
   gsap.fromTo('.panel__backdrop', { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.4 });
   gsap.fromTo(
     els.cardWrap,
     // opacity (not autoAlpha) keeps the card focusable while it animates in
     { opacity: 0, y: V.panelFrom.y, scale: V.panelFrom.scale },
-    { opacity: 1, y: 0, scale: 1, duration: REDUCED ? 0.25 : V.panelDuration, ease: REDUCED ? 'none' : V.panelEase },
+    {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      duration: REDUCED ? 0.25 : V.panelDuration,
+      ease: REDUCED ? 'none' : V.panelEase,
+      onComplete: () => !els.panel.hidden && (pauseGlobes(true), pauseClips(true)),
+    },
   );
-  els.card.scrollTop = 0;
-  els.card.focus();
+  els.panel.scrollTop = 0; // the whole popup scrolls (not the card)
+  els.card.focus({ preventScroll: true });
 }
 
 function closePanel({ restoreFocus = true } = {}) {
   if (els.panel.hidden) return;
   const V = CONFIG.reveal;
-  audio.cue('panelClose');
+  setCardOpen(false);
   gsap.to('.panel__backdrop', { autoAlpha: 0, duration: 0.25 });
   gsap.to(els.cardWrap, {
     opacity: 0,
@@ -398,7 +436,6 @@ function replay() {
   closePanel({ restoreFocus: false });
   for (const t of [hopTl, boing]) t?.kill();
   stopPrompt();
-  bursts = 0;
   setMoonTappable(false);
   tl.play('board');
 }

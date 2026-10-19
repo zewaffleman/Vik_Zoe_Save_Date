@@ -18,6 +18,12 @@ import * as THREE from 'three';
 import { gsap } from 'gsap';
 
 const DEG = Math.PI / 180;
+let paused = false; // all globes stop drawing (e.g. while the info card covers them)
+
+/** Stop/restart drawing every globe (they hold their last frame). */
+export function pauseGlobes(on) {
+  paused = on;
+}
 
 export function createGlobe(container, o) {
   const margin = o.glowMargin ?? 0.12; // extra canvas around the sphere, per side, as a fraction of size
@@ -117,7 +123,7 @@ export function createGlobe(container, o) {
     const dt = Math.min(deltaMs, 100) / 1000;
     globe.rotation.y += (o.spin ?? 0) * dt;
     if (clouds) clouds.rotation.y += (o.cloudSpin ?? 0) * dt;
-    if (!isVisible(container)) return;
+    if (paused || !isVisible(container)) return;
     renderer.render(scene, camera);
   });
 
